@@ -1,0 +1,161 @@
+from cozmo_fsm import *
+import cv2
+import matplotlib.pyplot as plt
+from PIL import Image
+import time
+
+
+import os
+import openai
+import base64
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
+image_path = "./sb_testing.jpg"
+base64_image = encode_image(image_path)
+
+client = openai.OpenAI()
+
+
+query = """There are 7 letters in hexagons in the bottom middle of the phone.
+           List the 7 letters in order. 
+          Place the letter in the center of the other letters first. The letter in the center will have a slightly darker background than the other letters. Dont say anything else just return the 7 letters with a space in between each one."
+          For example if the letters were A B C D E F G with C in the middle you would only output "C A B D E F G"
+          Ignore the "type or click" that might appear above the letters.
+"""
+
+
+class phone_screen(StateMachineProgram):
+    def user_image(self,image,gray):
+        self.robot.myimage = gray
+
+
+    class ShowScreen(StateNode):
+        def start(self,event):
+
+            def get_words(str):
+                words = open("words.txt", "r")
+                lines = words.readlines()
+
+                answers = []
+
+                for line in lines:
+                    line = line.replace("\n", "").lower().strip()
+                    is_word = True 
+                    if "'" not in line:
+                        if len(set(line)) == 7:
+                            for c in str:
+                                if c not in line:
+                                    is_word = False
+                            if is_word:
+                                answers.append((len(line), line))
+
+
+
+                sorted_list = sorted(answers, key=lambda x: x[0], reverse=True)
+                print(sorted_list)
+
+                # get top 5 or length of panagram list
+                print(sorted_list[:min(len(sorted_list), 5)])
+                return sorted_list[:min(len(sorted_list), 5)]
+
+
+            def get_response(filename):
+                base64_image = encode_image(filename)
+                response = client.chat.completions.create(
+                    model="gpt-4-vision-preview",
+                    messages = [
+                        {"role": "user", "content": [
+                            { "type": "text",
+                            "text": query
+                            },
+                            { "type": "image_url",
+                            "image_url": { "url" : f"data:image/jpeg;base64,{base64_image}"}
+                            }
+                        ]
+                        }
+                    ]
+                )
+
+                for choice in response.choices:
+                    cleaned_response = re.sub(r'\\[\[\]\(\)]', '', choice.message.content)
+                    print(cleaned_response)
+
+                clean_input = cleaned_response.replace(" ", "").lower()
+                print(clean_input)
+                get_words(clean_input)
+
+
+
+            def get_screen(img):
+                np_img = np.array(img)
+                ret, thresh = cv2.threshold(np_img, 127, 255,cv2.THRESH_OTSU)
+                plt.figure()
+                plt.imshow(thresh, cmap=plt.gray())
+                plt.show(block=False)
+                plt.pause(0.001)
+                connectivity = 4  
+                output = cv2.connectedComponentsWithStats(thresh)
+                (numLabels, labels, stats, centroids) = output
+                min_area = 90000
+
+                for i in range(numLabels):
+                    area = stats[i, cv2.CC_STAT_AREA]
+                    
+
+                    if area > 10000 and area < 90000:
+                        x = stats[i, cv2.CC_STAT_LEFT]
+                        y = stats[i, cv2.CC_STAT_TOP]
+                        w = stats[i, cv2.CC_STAT_WIDTH]
+                        h = stats[i, cv2.CC_STAT_HEIGHT]
+                    
+                        print(x)
+                        print(y)
+                        print(w)
+                        print(h)
+                        print()
+
+                        crop_img = img[y:y+h, x:x+w]
+                        plt.figure()
+                        plt.imshow(crop_img)
+
+                        plt.imshow(crop_img, cmap=plt.gray())
+                        plt.show(block=False)
+                        plt.pause(0.001)
+
+                        if area < min_area:
+                            ret_img = crop_img
+                            min_area = area
+
+
+
+                return ret_img
+
+
+            
+                            
+                            
+            
+
+        
+            super().start(event)
+            img = self.robot.myimage
+            new_img = get_screen(img)
+            im = Image.fromarray(new_img)
+            filename = str(time.time())
+            filename.replace(".", "")
+            filename += ".jpg"
+
+            im.save(filename)
+            get_response(filename)
+           
+
+
+    $setup{
+        # Slight delay allows time for first camera image to arrive.
+        StateNode() =T(5)=> self.ShowScreen()
+    }
