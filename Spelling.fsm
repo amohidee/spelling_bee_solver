@@ -1,0 +1,64 @@
+from cozmo_fsm import *
+
+destination = None
+
+class Spelling(StateMachineProgram):
+    def __init__(self):
+        global destination
+        destination = Pose(0,0,0,angle_z=degrees(0))
+        super().__init__(cam_viewer=True,
+                         worldmap_viewer=True,
+                         path_viewer=True,
+                         particle_viewer=True)
+
+    class SetDest(StateNode):
+        def start(self,event=None):
+            global destination
+            super().start(event)
+            # bug: robot sees the wall but its not in worldmap
+            print(robot.world.world_map.objects.items())
+            """
+            walls = [x for x,y in robot.world.world_map.objects.items() if isinstance(y, WallObj)]
+            print(walls)
+            name, obj = walls[0]
+            destination = Pose(obj.x - 100, obj.y, 0, angle_z=degrees(0))
+            a = destination
+            print(a.x)
+            print(a.y)
+            print(a.z)
+            """
+
+    class NextLetter(PilotToPose):
+        def start(self, event=None):
+            global destination
+            a = destination;
+            destination = Pose(a.x, a.y - 100, a.z, angle_z=a.angle_z)
+            print()
+            print(a.x)
+            print(a.y)
+            print(a.z)
+            super().start(event)
+
+    class Pilot(PilotToPose):
+        def __init__(self):
+            super().__init__(None)
+
+        def start(self, event=None):
+            global destination
+            self.target_pose = destination
+            print('Traveling to',self.target_pose)
+            super().start(event)
+    
+        
+
+    $setup{
+        # pilot: self.Pilot()
+
+        set_dest: self.SetDest()
+
+        next_letter: self.NextLetter()
+
+        launcher: StateNode()
+
+        launcher =N=> set_dest =N=> self.Pilot() =C=> next_letter
+    }
