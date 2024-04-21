@@ -1,6 +1,12 @@
 from cozmo_fsm import *
+import math
 
 destination = None
+letter_pose = None
+
+letter_dict = {"A": "Cube-1", "B": "Cube-2", "C": "Cube-3"}
+word = "ABC"
+index = 0
 
 class Spelling(StateMachineProgram):
     def __init__(self):
@@ -13,31 +19,58 @@ class Spelling(StateMachineProgram):
 
     class SetDest(StateNode):
         def start(self,event=None):
-            global destination
+            global destination, letter_pose
             super().start(event)
             # bug: robot sees the wall but its not in worldmap
-            print(robot.world.world_map.objects.items())
-            """
-            walls = [x for x,y in robot.world.world_map.objects.items() if isinstance(y, WallObj)]
+            print(self.robot.world.world_map.objects.items())
+            walls = []
+            for name, obj in robot.world.world_map.objects.items():
+                if isinstance(obj, WallObj):
+                    walls.append(obj)
+            print("WALLS")
             print(walls)
-            name, obj = walls[0]
-            destination = Pose(obj.x - 100, obj.y, 0, angle_z=degrees(0))
-            a = destination
-            print(a.x)
-            print(a.y)
-            print(a.z)
-            """
+            print(walls[0])
 
-    class NextLetter(PilotToPose):
+
+
+
+            wall = walls[0]
+
+            destination = Pose(wall.x - 150, wall.y, 0, angle_z=degrees(0))
+            # letter_pose = Pose(wall.x - 300, wall.y, 0, angle_z=degrees(180))
+
+            letter_pose = self.robot.pose
+
+            
+            a = destination
+            print(a.position.x)
+            print(a.position.y)
+            print(a.position.z)
+            
+
+
+    class NextLetter(GoToPose):
+        def __init__(self):
+                super().__init__(None)
+
         def start(self, event=None):
             global destination
+            print("NEXT LETTER")
             a = destination;
-            destination = Pose(a.x, a.y - 100, a.z, angle_z=a.angle_z)
-            print()
-            print(a.x)
-            print(a.y)
-            print(a.z)
+            print(a.position.x)
+            print(a.position.y)
+            print(a.position.z)
+            
+            self.pose = destination
+           
+            
             super().start(event)
+            destination = Pose(a.position.x, a.position.y - 50, a.position.z, angle_z=a.rotation.angle_z)
+            a = destination
+            print()
+            print(a.position.x)
+            print(a.position.y)
+            print(a.position.z)
 
     class Pilot(PilotToPose):
         def __init__(self):
@@ -48,17 +81,62 @@ class Spelling(StateMachineProgram):
             self.target_pose = destination
             print('Traveling to',self.target_pose)
             super().start(event)
+
+    class GoLetter(GoToPose):
+        def __init__(self):
+            super().__init__(None)
+
+        def start(self, event=None):
+            global destination, letter_pose
+            print("GO LETTER")
+            print(f"robot pose = {self.robot.pose}")
+            self.pose = letter_pose
+            
+            # self.target_pose = Pose(-300,0,0,angle_z=degrees(180))
+
+            print('Traveling to',self.pose)
+            super().start(event)
+
+
+    class GoBehindLetter(GoToPose):
+        def __init__(self):
+            super().__init__(None)
+
+        def start(self, event=None):
+            global destination, letter_pose, letter_dict, word, index
+            print("GO BEHIND LETTER")
+            print(f"robot pose = {self.robot.pose}")
+            
+            cube = self.robot.world.world_map.objects[letter_dict[word[index]]]
+            print(cube)
+            x = cube.x
+            y = cube.y
+            z = cube.z
+            self.pose = Pose(x - 50, y, 0, angle_z=self.robot.pose.rotation.angle_z)
+            print('Traveling to',self.pose)
+            super().start(event)
+            index += 1
+            
+            
     
         
 
     $setup{
-        # pilot: self.Pilot()
+        launcher: StateNode()
+        launcher =T(2)=> set_dest # Turn(90) =C=> Turn(45) =C=> Turn(30)  =C=> Turn(30)=C=> Turn(30) =C=> Turn(45) =C=> Turn(90) =C=> set_dest
 
         set_dest: self.SetDest()
+        set_dest =N=> go_letter
+
+        go_letter: self.GoLetter()
+        go_letter =T(3)=> behind_letter
+
+        behind_letter: self.GoBehindLetter()
+        behind_letter =T(3)=> next_letter
 
         next_letter: self.NextLetter()
+        next_letter =C=> go_letter
 
-        launcher: StateNode()
+        
 
-        launcher =N=> set_dest =N=> self.Pilot() =C=> next_letter
     }
