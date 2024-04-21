@@ -47,7 +47,7 @@ class phone_screen(StateMachineProgram):
                     line = line.replace("\n", "").lower().strip()
                     is_word = True 
                     if "'" not in line:
-                        if len(set(line)) == 7:
+                        if len(set(line)) <= 7 and len(set(line)) = len(line):
                             for c in str:
                                 if c not in line:
                                     is_word = False
