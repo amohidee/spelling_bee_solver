@@ -39,7 +39,7 @@ class Spelling(StateMachineProgram):
             destination = Pose(wall.x - 150, wall.y, 0, angle_z=degrees(0))
             # letter_pose = Pose(wall.x - 300, wall.y, 0, angle_z=degrees(180))
 
-            letter_pose = self.robot.pose
+            letter_pose = self.robot.world.particle_filter.pose
 
             
             a = destination
@@ -89,7 +89,7 @@ class Spelling(StateMachineProgram):
         def start(self, event=None):
             global destination, letter_pose
             print("GO LETTER")
-            print(f"robot pose = {self.robot.pose}")
+            print(f"robot pose = {self.robot.world.particle_filter.pose}")
             self.pose = letter_pose
             
             # self.target_pose = Pose(-300,0,0,angle_z=degrees(180))
@@ -105,14 +105,13 @@ class Spelling(StateMachineProgram):
         def start(self, event=None):
             global destination, letter_pose, letter_dict, word, index
             print("GO BEHIND LETTER")
-            print(f"robot pose = {self.robot.pose}")
+            print(f"robot pose = {self.robot.world.particle_filter.pose}")
             
             cube = self.robot.world.world_map.objects[letter_dict[word[index]]]
             print(cube)
             x = cube.x
             y = cube.y
-            z = cube.z
-            self.pose = Pose(x - 50, y, 0, angle_z=self.robot.pose.rotation.angle_z)
+            self.pose = Pose(x - 50, y, 0, angle_z=self.robot.world.particle_filter.pose.theta)
             print('Traveling to',self.pose)
             super().start(event)
             index += 1
