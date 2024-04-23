@@ -5,7 +5,7 @@ destination = None
 origin = None
 
 letter_dict = {"A": "6", "B": "7", "C": "10"}
-#Diamonds 3 is id 6, Diamonds 2 is id 10, Hexagons 4 is id 11, Circles2 is id 9, Hexagons3 is id 7
+#Diamonds3 is id 6, Diamonds2 is id 10, Hexagons4 is id 11, Circles2 is id 9, Hexagons3 is id 7, Triangles4 is id 12, Circles5 is id 4
 #change rrt.py compute_world_bounds xmin, xmax, ymin, ymax to + or - 100 instead of + or - 500.
 """
 Your custom_objs.py should look like this:
