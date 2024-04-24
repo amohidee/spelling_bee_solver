@@ -48,8 +48,8 @@ class phone_screen(StateMachineProgram):
                     is_word = True 
                     if "'" not in line:
                         if len(set(line)) <= 7 and len(set(line)) = len(line) and str[0] in line:
-                            for c in str:
-                                if c not in line:
+                            for c in line:
+                                if c not in str:
                                     is_word = False
                             if is_word:
                                 answers.append((len(line), line))
