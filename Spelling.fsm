@@ -1,12 +1,55 @@
 from cozmo_fsm import *
 import math
 
+import cv2
+import matplotlib.pyplot as plt
+from PIL import Image
+import time
+
+
+import os
+import openai
+import base64
+
 destination = None
 origin = None
 
-letter_dict = {"A": "6", "B": "7", "C": "10"}
-#Diamonds3 is id 6, Diamonds2 is id 10, Hexagons4 is id 11, Circles2 is id 9, Hexagons3 is id 7, Triangles4 is id 12, Circles5 is id 4
+letter_dict = {"t": 'CustomMarkerObj-15', "o": 'CustomMarkerObj-11', "p": 'CustomMarkerObj-14', "i": 'CustomMarkerObj-10', "a": 'CustomMarkerObj-13', 
+"r": 'CustomMarkerObj-16', "y": 'CustomMarkerObj-12'}
+"""
+Diamonds3 is CustomMarkerObj-15, 
+Diamonds2 is CustomMarkerObj-11, 
+Hexagons4 is CustomMarkerObj-16, 
+Circles2 is CustomMarkerObj-10, 
+Hexagons3 is CustomMarkerObj-12, 
+Triangles4 is CustomMarkerObj-13, 
+Circles4 is CustomMarkerObj-14
+"""
 #change rrt.py compute_world_bounds xmin, xmax, ymin, ymax to + or - 100 instead of + or - 500.
+
+word = "topiary"
+index = 0
+
+
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
+client = openai.OpenAI()
+
+
+query = """There are 7 letters in hexagons in the bottom middle of the phone.
+           List the 7 letters in order. 
+          Place the letter in the center of the other letters first. The letter in the center will have a slightly darker background than the other letters. Dont say anything else just return the 7 letters with a space in between each one."
+          For example if the letters were A B C D E F G with C in the middle you would only output "C A B D E F G"
+          Ignore the "type or click" that might appear above the letters.
+"""
+
+
+
 """
 Your custom_objs.py should look like this:
 import cozmo
@@ -77,7 +120,7 @@ async def declare_objects(robot):
                     CustomObjectMarkers.Triangles4,
                     50, 40, 40, True)
     await decl_cube(CustomObjectTypes.CustomType14,
-                    CustomObjectMarkers.Circles5,
+                    CustomObjectMarkers.Circles4,
                     50, 40, 40, True)
     await decl_cube(CustomObjectTypes.CustomType15,
                     CustomObjectMarkers.Diamonds3,
@@ -88,8 +131,6 @@ async def declare_objects(robot):
 
 """
 
-word = "ABC"
-index = 0
 
 class Spelling(StateMachineProgram):
     def __init__(self):
@@ -99,6 +140,125 @@ class Spelling(StateMachineProgram):
                          worldmap_viewer=True,
                          path_viewer=True,
                          particle_viewer=True)
+    def user_image(self,image,gray):
+            self.robot.myimage = gray
+    """
+    class ShowScreen(StateNode):
+        
+        def start(self,event):
+            global word
+            def get_words(str):
+                global word
+                words = open("words.txt", "r")
+                lines = words.readlines()
+
+                answers = []
+
+                for line in lines:
+                    line = line.replace("\n", "").lower().strip()
+                    is_word = True 
+                    if "'" not in line:
+                        if len(set(line)) <= 7 and len(set(line)) == len(line) and str[0] in line:
+                            for c in line:
+                                if c not in str:
+                                    is_word = False
+                            if is_word:
+                                answers.append((len(line), line))
+
+
+
+                sorted_list = sorted(answers, key=lambda x: x[0], reverse=True)
+                print(sorted_list)
+
+                # get top 5 or length of panagram list
+                word = sorted_list[0][1]
+                print(word)
+                
+
+
+
+            def get_response(filename):
+                base64_image = encode_image(filename)
+                response = client.chat.completions.create(
+                    model="gpt-4-vision-preview",
+                    messages = [
+                        {"role": "user", "content": [
+                            { "type": "text",
+                            "text": query
+                            },
+                            { "type": "image_url",
+                            "image_url": { "url" : f"data:image/jpeg;base64,{base64_image}"}
+                            }
+                        ]
+                        }
+                    ]
+                )
+
+                for choice in response.choices:
+                    cleaned_response = re.sub(r'\\[\[\]\(\)]', '', choice.message.content)
+                    print(cleaned_response)
+
+                clean_input = cleaned_response.replace(" ", "").lower()
+                print(clean_input)
+                get_words(clean_input)
+
+
+
+            def get_screen(img):
+                np_img = np.array(img)
+                ret, thresh = cv2.threshold(np_img, 127, 255,cv2.THRESH_OTSU)
+                plt.figure()
+                plt.imshow(thresh, cmap=plt.gray())
+                plt.show(block=False)
+                plt.pause(0.001)
+                connectivity = 4  
+                output = cv2.connectedComponentsWithStats(thresh)
+                (numLabels, labels, stats, centroids) = output
+                min_area = 90000
+
+                for i in range(numLabels):
+                    area = stats[i, cv2.CC_STAT_AREA]
+                    
+
+                    if area > 10000 and area < 90000:
+                        x = stats[i, cv2.CC_STAT_LEFT]
+                        y = stats[i, cv2.CC_STAT_TOP]
+                        w = stats[i, cv2.CC_STAT_WIDTH]
+                        h = stats[i, cv2.CC_STAT_HEIGHT]
+                    
+                        print(x)
+                        print(y)
+                        print(w)
+                        print(h)
+                        print()
+
+                        crop_img = img[y:y+h, x:x+w]
+                        plt.figure()
+                        plt.imshow(crop_img)
+
+                        plt.imshow(crop_img, cmap=plt.gray())
+                        plt.show(block=False)
+                        plt.pause(0.001)
+
+                        if area < min_area:
+                            ret_img = crop_img
+                            min_area = area
+
+
+
+                return ret_img
+        
+            super().start(event)
+            img = self.robot.myimage
+            new_img = get_screen(img)
+            im = Image.fromarray(new_img)
+            filename = str(time.time())
+            filename.replace(".", "")
+            filename += ".jpg"
+
+            im.save(filename)
+            get_response(filename)
+    """
 
     class SetDest(StateNode):
         def start(self,event=None):
@@ -116,8 +276,7 @@ class Spelling(StateMachineProgram):
 
             wall = walls[0]
 
-            destination = Pose(wall.x - 150, wall.y, 0, angle_z=degrees(0))
-            # origin = Pose(wall.x - 300, wall.y, 0, angle_z=degrees(180))
+            destination = Pose(wall.x - 150, wall.y + 200, 0, angle_z=degrees(0))
 
             origin = self.robot.world.particle_filter.pose
 
@@ -155,7 +314,6 @@ class Spelling(StateMachineProgram):
             global destination, origin, letter_dict, word, index
             print("GO BEHIND LETTER")
             print(f"robot pose = {self.robot.world.particle_filter.pose}")
-            
             cube = self.robot.world.world_map.objects[letter_dict[word[index]]]
             print(cube)
             x = cube.x
@@ -166,16 +324,20 @@ class Spelling(StateMachineProgram):
 
     $setup{
         launcher: StateNode()
-        launcher =T(2)=> set_dest
+        launcher =T(5)=> set_dest
+
+        
+        #show_screen : self.ShowScreen()
+        #show_screen =T(5)=> set_dest
 
         set_dest: self.SetDest()
-        set_dest =N=> behind_letter
+        set_dest =T(5)=> Turn(180) =C=> Turn(180) =C=> Turn(-90) =C=> Forward(300) =C=> Turn(90) =C=> StateNode() =T(1)=> behind_letter
 
         behind_letter: self.GoBehindLetter()
         behind_letter =C=>  go_letter
 
         go_letter: self.GoLetter()
-        go_letter =C=>  behind_letter
+        go_letter =C=>  Turn(180) =C=> StateNode() =T(1)=> behind_letter
         go_letter =F=> Say("All done!")
         
 
