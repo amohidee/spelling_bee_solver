@@ -23,12 +23,16 @@ Hexagons4 is CustomMarkerObj-16,
 Circles2 is CustomMarkerObj-10, 
 Hexagons3 is CustomMarkerObj-12, 
 Triangles4 is CustomMarkerObj-13, 
-Circles4 is CustomMarkerObj-14
+Hexagons2 is CustomMarkerObj-14
 """
 #change rrt.py compute_world_bounds xmin, xmax, ymin, ymax to + or - 100 instead of + or - 500.
 
-word = "topiary"
+word = None
+#word = "topiary"
 index = 0
+
+# export OPENAI_API_KEY=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
+
 
 
 
@@ -137,9 +141,7 @@ class Spelling(StateMachineProgram):
         global destination
         destination = Pose(0,0,0,angle_z=degrees(0))
         super().__init__(cam_viewer=True,
-                         worldmap_viewer=True,
-                         path_viewer=True,
-                         particle_viewer=True)
+                         path_viewer=True)
     def user_image(self,image,gray):
             self.robot.myimage = gray
     """
@@ -321,24 +323,48 @@ class Spelling(StateMachineProgram):
             self.target_pose = Pose(x - 150, y, 0, angle_z=degrees(0))
             print('Traveling to',self.target_pose)
             super().start(event)
+            
+
+    class SayLetter(Say):
+        def start(self, event=None):
+            global word, index
+            self.text = word[index]
+            super().start(event)
+            index += 1
 
     $setup{
         launcher: StateNode()
-        launcher =T(5)=> set_dest
+        launcher =T(1)=> show_screen
 
         
-        #show_screen : self.ShowScreen()
-        #show_screen =T(5)=> set_dest
+        show_screen : self.ShowScreen()
+        show_screen =T(5)=> set_dest
 
         set_dest: self.SetDest()
-        set_dest =T(5)=> Turn(180) =C=> Turn(180) =C=> Turn(-90) =C=> Forward(300) =C=> Turn(90) =C=> StateNode() =T(1)=> behind_letter
+        set_dest =T(1)=> Turn(180) =C=> Turn(180) =C=> Turn(-90) =C=> Forward(300) =C=> Turn(90) =C=> StateNode() =N=> loop
+
+
+        loop: Iterate(len(word))
+        loop =D=> behind_letter
+        loop =C=> Say(word)
 
         behind_letter: self.GoBehindLetter()
-        behind_letter =C=>  go_letter
+        behind_letter =C=> say_letter 
 
-        go_letter: self.GoLetter()
-        go_letter =C=>  Turn(180) =C=> StateNode() =T(1)=> behind_letter
-        go_letter =F=> Say("All done!")
+        say_letter: self.SayLetter()
+        say_letter =C=> Forward(-100) =C=> StateNode() =T(1)=> StateNode() =Next=> loop
+
+
+
+        
+        #set_dest =T(5)=> Turn(180) =C=> Turn(180) =C=> Turn(-90) =C=> Forward(250) =C=> Turn(90) =C=> StateNode() =T(1)=> behind_letter
+
+        #behind_letter: self.GoBehindLetter()
+        #behind_letter =C=>  go_letter
+
+        #go_letter: self.GoLetter()
+        #go_letter =C=>  Turn(180) =C=> StateNode() =T(1)=> behind_letter
+        #go_letter =F=> Say("All done!")
         
 
     }
