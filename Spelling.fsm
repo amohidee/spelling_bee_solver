@@ -31,9 +31,6 @@ word = None
 #word = "topiary"
 index = 0
 
-# export OPENAI_API_KEY=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
-
-
 
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
