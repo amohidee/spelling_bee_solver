@@ -139,7 +139,8 @@ class Spelling(StateMachineProgram):
     def __init__(self):
         global destination
         destination = Pose(0,0,0,angle_z=degrees(0))
-        super().__init__(cam_viewer=True)
+        super().__init__(path_viewer=True,
+                        cam_viewer=True)
     def user_image(self,image,gray):
             self.robot.myimage = gray
     
@@ -343,7 +344,7 @@ class Spelling(StateMachineProgram):
         show_screen =Next=> Say("Put me down in front of the cubes") =T(5)=> set_dest
 
         set_dest: self.SetDest()
-        set_dest =T(1)=> Turn(180) =C=> Turn(180) =C=> Turn(-90) =C=> Forward(300) =C=> Turn(90) =C=> word_length 
+        set_dest =T(1)=> Turn(180) =C=> StateNode() =T(1)=> Turn(180) =C=> Turn(-90) =C=> Forward(300) =C=> Turn(90) =C=> StateNode() =T(1)=> word_length 
 
         word_length : self.WordLength() =D=> loop
 
