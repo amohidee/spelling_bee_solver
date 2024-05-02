@@ -1,0 +1,7 @@
+1) Use the rrt.py and Custom_Objects.py included inthe zip instead of the default files in cozmo_tools.
+2) Bring up a picture of one of the two spelling bees included in the zip, or use any spelling bee that uses a subset of these 13 letters: A, V, L, N, C, H, E, T, O, P, I, R, Y
+3) Arrange the letter cubes in any order on the floor. Make sure they are spaced close to each other.
+4) Put an Aruco wall behind the cubes and put an Aruco wall in front of the cubes, but at a much larger distance so there is space to place the Cozmo Robot.
+5) Run Spelling.fsm and hold Cozmo's camera to the screen.
+6) When Cozmo says to, put Cozmo in front of the cubes around one and a half tiles behind the cubes, directly behind the third cube from the left.
+7) Observe Cozmo spell out the word!
